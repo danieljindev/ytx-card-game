@@ -306,14 +306,22 @@ io.on('connection', async (socket) => {
 			)
 		}
 	})
-	socket.on('set-account', async (account) => {
-		try {
-			await db.collection('users').insertOne({
-				socket: socket.id,
-				account,
-			})
-		} catch (e) {}
-	})
+socket.on('set-account', async (account) => {
+    try {
+        await db.collection('users').updateOne(
+            { account },
+            {
+                $set: {
+                    socket: socket.id,
+                    account,
+                },
+            },
+            { upsert: true },
+        )
+    } catch (e) {
+        console.log(e)
+    }
+})
 	socket.on('end-turn', async (data) => {
 		console.log('end-turn', data.currentGameID)
 		const { currentGameID } = data
