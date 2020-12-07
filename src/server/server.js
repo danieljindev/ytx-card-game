@@ -72,7 +72,7 @@ io.on('connection', async (socket) => {
 		console.log('User disconnected', socket.id)
 		const position = activeSockets.map((soc) => soc.id).indexOf(socket.id)
 		activeSockets.splice(position, 1)
-		cancelGame(socket)
+		leaveGame(socket)
 	})
 	socket.on('create-game', async (data) => {
 		console.log('create-game BY', socket.id)
@@ -680,7 +680,7 @@ io.on('connection', async (socket) => {
 
 		const { currentGameID, attackingCardID, enemyCardID } = data
 		let currentGame
-		console.log(data, 'onsocket data')
+
 		// Check if the game exists
 		try {
 			currentGame = await db.collection('games').findOne({
@@ -710,7 +710,7 @@ io.on('connection', async (socket) => {
 		}
 
 		const { ally, enemy } = getAllyAndEnemy(playerNumber, currentGame)
-		console.log(ally, enemy, 'onsocket ally and enemy')
+
 		const attackingCard = ally.field.find(
 			(currentCard) => currentCard.id === attackingCardID,
 		)
@@ -1132,6 +1132,83 @@ const cancelGame = async (socket) => {
 	} catch (e) {
 		console.log('error', e)
 		socket.emit('user-error', '#9 Error deleting the game try again later')
+	}
+}
+
+const leaveGame = async (socket) => {
+	console.log('leave game')
+	// Remove game from the db by using users' socket id only if the game is unstarted
+	try {
+		const gamesWithUserAccount = await db
+			.collection('users')
+			.find({
+				socket: socket.id,
+			})
+			.toArray()
+
+		let currentGame
+
+		// Check if the game exists
+		try {
+			currentGame = await db.collection('games').findOne({
+				$or: [
+					{
+						status: GAME_STATUS.STARTED,
+						'player1.account': gamesWithUserAccount[0].account,
+						'player1.socketId': socket.id,
+					},
+					{
+						status: GAME_STATUS.STARTED,
+						'player2.account': gamesWithUserAccount[0].account,
+						'player2.socketId': socket.id,
+					},
+				],
+			})
+		} catch (e) {
+			return socket.emit(
+				'user-error',
+				'#28 Game not found from the given account',
+			)
+		}
+
+		if(currentGame) {
+			const playerNumber = getPlayerNumber(socket.id, currentGame)
+			const currentTimestamp = Date.now()
+
+			let set = {
+				leavedPlayerNumber: playerNumber,
+				leavedTime: currentTimestamp,
+				leaveGameTimeLimitTimestamp:
+					currentTimestamp + GAME_CONFIG.secondsAllowedToLeave * 1000,
+			}
+
+			// Update other player's field cards to set canAttack to true
+			// Send start turn to the other player with the updated game
+			let updatedGame
+			try {
+				updatedGame = await db.collection('games').findOneAndUpdate(
+					{
+						gameId: currentGame.gameId,
+					},
+					{
+						$set: set,
+					},
+					{
+						returnOriginal: false,
+					},
+				)
+				updatedGame = await db.collection('games').findOne({
+					gameId: currentGame.gameId,
+				})
+				console.log(updatedGame)
+			} catch (e) {
+				return socket.emit('user-error', '#25 Error leaving the game, try again')
+			}			
+		}
+
+	} catch (e) {
+		console.log('error', e)
+		socket.emit('user-error', '#10 Error leaving the game try again later')
 	}
 }
 

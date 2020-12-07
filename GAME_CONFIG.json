@@ -10,5 +10,6 @@
 	"minCardLife": 10,
 	"maxCardLife": 18,
   	"secondsPerTurn": 120,
+  	"secondsAllowedToLeave": 10,
   	"energyRefundRate": 0.25
 }
