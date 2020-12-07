@@ -1171,7 +1171,7 @@ const leaveGame = async (socket) => {
 			)
 		}
 
-		if(currentGame) {
+		if (currentGame) {
 			const playerNumber = getPlayerNumber(socket.id, currentGame)
 			const currentTimestamp = Date.now()
 
@@ -1197,15 +1197,14 @@ const leaveGame = async (socket) => {
 						returnOriginal: false,
 					},
 				)
-				updatedGame = await db.collection('games').findOne({
-					gameId: currentGame.gameId,
-				})
 				console.log(updatedGame)
 			} catch (e) {
-				return socket.emit('user-error', '#25 Error leaving the game, try again')
-			}			
+				return socket.emit(
+					'user-error',
+					'#25 Error leaving the game, try again',
+				)
+			}
 		}
-
 	} catch (e) {
 		console.log('error', e)
 		socket.emit('user-error', '#10 Error leaving the game try again later')
